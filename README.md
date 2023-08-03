@@ -13,12 +13,18 @@ To install Pysam, use pip:
 pip install pysam
 ```
 
+If you need to install python libraries to user install directories:
+
+```
+pip install pysam --user
+```
+
 ## Via conda
 
 Alternatively, install Conda, then:
 
 ```
-conda create env -f environment.yml
+conda env create -f environment.yml
 source activate eh5_kmer
 ```
 
