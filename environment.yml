@@ -1,0 +1,12 @@
+name: eh5_kmer
+channels:
+  - bioconda
+  - r
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - pysam=0.20.0=py38h1c8baaf_0
+  - pysocks=1.7.1=pyha2e5f31_6
+  - python=3.8.15=h257c98d_0_cpython
