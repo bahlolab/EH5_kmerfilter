@@ -1,5 +1,6 @@
 import argparse
 import json
+import gzip
 import re
 import pysam
 from collections import defaultdict
@@ -64,9 +65,9 @@ def parse_vcf_file(vcf_path):
             vcf_catalog[id_string] = (var_id, rep_id, max_allele, min_allele, spline[3])
     return vcf_catalog
 
-def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=1):
+def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=1, debug=False):
     retain_ids = set()
-    with open(args.output_path + "_kmers.tsv", 'wt') as kmer_out:
+    with gzip.open(args.output_path + "_kmers.tsv.gz", 'wt') as kmer_out:
         for val in catalog:
             locus_id_list = val["LocusId"]
             locus_coord = val["ReferenceRegion"]
@@ -96,10 +97,8 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
                 genotyped_len = vcf_catalog[motif_id][2]
                 read_len = [len(x) for x in read_sequences]
                 average_read_len = floor(sum(read_len) / len(read_len))
-                kmer_size = max(min(floor(0.2 * genotyped_len) * len(motif_dict[motif_id]),
-                                    floor(0.2 * floor(average_read_len / len(motif_dict[motif_id]))) * len(
-                                        motif_dict[motif_id])),
-                                len(motif_dict[motif_id]))
+                kmer_size = max(min(floor(0.2 * genotyped_len) * len(motif_dict[motif_id]), 
+                                    floor(0.2 * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
                 kmer_dict = kmer_count(read_sequences, kmer_size)
                 lexed_dict = defaultdict(int)
                 for kmer in kmer_dict:
