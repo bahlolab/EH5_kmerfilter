@@ -40,13 +40,13 @@ def get_motif_regex(iupac_string):
     return "".join([IUPAC_REGEX_DICT.get(x, x) for x in iupac_string])
 
 
-def parse_vcf_file(vcf_path):
+def parse_vcf_file(vcf_path, keep_lowdepth):
     """Parse an EH5 VCF file and return a dictionary with relevant info."""
     vcf_catalog = {}
     with open(vcf_path, 'rt') as vcf_file:
         for line in vcf_file:
             # Skip LowDepth calls and headers.
-            if line.startswith("#") or "LowDepth" in line:
+            if line.startswith("#") or (not keep_lowdepth and "LowDepth" in line):
                 continue
             spline = line.strip().split()
             desc_line = spline[7]
@@ -128,10 +128,11 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", default=15, help="k-mer multiplier; will count repeats of kmer_mul*motif_len")
     parser.add_argument("--rank", dest="rank", default=1, help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
+    parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
     args = parser.parse_args()
     with open(args.catalog_path, 'rt') as in_file:
         catalog = json.load(in_file)
-    vcf_catalog = parse_vcf_file(args.vcf_path)
+    vcf_catalog = parse_vcf_file(args.vcf_path, keep_lowdepth=args.keep_lowdepth)
     samfile = pysam.AlignmentFile(args.bam_path, "rb")
     tagset = set()
     motif_dict = {}
