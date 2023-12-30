@@ -41,29 +41,27 @@ def get_motif_regex(iupac_string):
 
 
 def parse_vcf_file(vcf_path, keep_lowdepth):
-    """Parse an EH5 VCF file and return a dictionary with relevant info."""
+    """Parse an EH5 VCF file using pysam and return a dictionary with relevant info."""
     vcf_catalog = {}
-    with open(vcf_path, 'rt') as vcf_file:
-        for line in vcf_file:
-            # Skip LowDepth calls and headers.
-            if line.startswith("#") or (not keep_lowdepth and "LowDepth" in line):
+    with pysam.VariantFile(vcf_path) as vcf_file:
+        for record in vcf_file:
+            if not keep_lowdepth and "LowDepth" in record.info:
                 continue
-            spline = line.strip().split()
-            desc_line = spline[7]
-            var_id = None
-            rep_id = None
-            for split in desc_line.split(";"):
-                if "VARID=" in split: var_id = split.replace("VARID=", "")
-                if "REPID=" in split: rep_id = split.replace("REPID=", "")
+            desc_line = record.info
+            var_id = desc_line.get("VARID")
+            rep_id = desc_line.get("REPID")
+            gt = record.samples[0].get("REPCN")
             id_string = var_id if var_id else rep_id
-            rep_counts = [int(x) for x in spline[9].split(":")[2].split("/")]
+            rep_counts = [int(x) for x in gt.split("/")]
             max_allele = max(rep_counts)
-            min_allele = min(rep_counts)
+            min_allele = min(rep_counts) if len(rep_counts) > 1 else None
             if id_string in vcf_catalog:
                 print("ERROR: Overwriting ID string.")
                 exit(1)
-            vcf_catalog[id_string] = (var_id, rep_id, max_allele, min_allele, spline[3])
+            vcf_catalog[id_string] = (var_id, rep_id, max_allele, min_allele, desc_line.get("RU"))
+    print(vcf_catalog)
     return vcf_catalog
+
 
 def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=1, enable_logs=False):
     retain_ids = set()
@@ -94,9 +92,10 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
             for read in samfile.fetch(chrom, start - args.margin, end + args.margin):
                 tag = read.get_tag("XG").split(",")[0]
                 read_sequences.append(read.seq)
-            if len(read_sequences) == 0:
+            if len(read_sequences) == 0 or vcf_catalog[motif_id][2] == None:
                 continue
-            genotyped_len = vcf_catalog[motif_id][2]
+            print(vcf_catalog[motif_id][2], type(vcf_catalog[motif_id][2]))
+            genotyped_len = floor(vcf_catalog[motif_id][2])
             read_len = [len(x) for x in read_sequences]
             average_read_len = floor(sum(read_len) / len(read_len))
             kmer_size = max(min(floor(0.2 * genotyped_len) * len(motif_dict[motif_id]), 
