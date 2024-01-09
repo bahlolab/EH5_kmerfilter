@@ -1,6 +1,13 @@
 # EH5_kmerfilter
 k-mer based filtering of ExpansionHunter 5 output.
 
+# Changelog
+
+## v0.10.0
+
+- fixes `--rank` parameter
+- adds `auto` option to `--rank`. This is recommended for most uses. `auto` will act as `--rank 1` on loci with only one motif defined, but at motifs where *n* loci are defined, it will act as `--rank n`.
+
 # Installation
 
 ## Via pip
