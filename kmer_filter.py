@@ -3,6 +3,7 @@ import json
 import gzip
 import re
 import pysam
+import sys
 from collections import defaultdict
 from math import floor
 
@@ -56,17 +57,15 @@ def parse_vcf_file(vcf_path, keep_lowdepth):
             max_allele = max(rep_counts)
             min_allele = min(rep_counts) if len(rep_counts) > 1 else None
             if id_string in vcf_catalog:
-                print("ERROR: Overwriting ID string.")
+                print("ERROR: Overwriting ID string.", file=sys.stderr)
                 exit(1)
             vcf_catalog[id_string] = (var_id, rep_id, max_allele, min_allele, desc_line.get("RU"))
-    print(vcf_catalog)
     return vcf_catalog
 
 
 def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=1, enable_logs=False):
     retain_ids = set()
     if enable_logs:
-        print("LOGGING")
         kmer_out = gzip.open(args.output_path + "_kmers.tsv.gz", 'wt')
     for val in catalog:
         locus_id_list = val["LocusId"]
@@ -94,7 +93,6 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
                 read_sequences.append(read.seq)
             if len(read_sequences) == 0 or vcf_catalog[motif_id][2] == None:
                 continue
-            print(vcf_catalog[motif_id][2], type(vcf_catalog[motif_id][2]))
             genotyped_len = floor(vcf_catalog[motif_id][2])
             read_len = [len(x) for x in read_sequences]
             average_read_len = floor(sum(read_len) / len(read_len))
@@ -102,16 +100,17 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
                                 floor(0.2 * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
             kmer_dict = kmer_count(read_sequences, kmer_size)
             lexed_dict = defaultdict(int)
+            count_lim = len(locus_struct_list) if kmer_range == -1 else kmer_range
             for kmer in kmer_dict:
                 if kmer.count(kmer[0:len(motif_dict[motif_id])]) * len(motif_dict[motif_id]) == kmer_size:
                     lexed_dict[lex_min_rotation(kmer)[0:len(motif_dict[motif_id])]] += kmer_dict[kmer]
             sort_kmers = [(k, v) for k, v in sorted(lexed_dict.items(), reverse=True, key=lambda item: item[1])]
-            freq_kmer_string = " ".join([f'{kmer[0]}:{kmer[1]}' for kmer in sort_kmers[0:1]])
-            if any(regex_dict[motif_dict[motif_id]].search(freq_kmer_string) for _ in range(kmer_range)):
+            freq_kmer_string = " ".join([f'{kmer[0]}:{kmer[1]}' for kmer in sort_kmers[0:count_lim]])
+            if any(regex_dict[motif_dict[motif_id]].search(freq_kmer_string) for _ in range(count_lim)):
                 retain_ids.add(motif_id)
             if enable_logs:
                 kmer_out.write("\t".join([motif_id, motif, coord, str(genotyped_len * len(motif)), str(kmer_size),
-                               ";".join([f'{kmer}:{lexed_dict[kmer]}' for kmer in lexed_dict])]))
+                               ";".join([f'{kmer}:{lexed_dict[kmer]}' for kmer, _ in sort_kmers])]))
                 kmer_out.write("\n")
     if enable_logs:
         kmer_out.close()
@@ -125,10 +124,14 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", dest="output_path", help="Prefix (path) for output")
     parser.add_argument("-m", "--margin", dest="margin", default=1000, help="Margin (in nt) around catalog entry to calculate kmers")
     parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", default=15, help="k-mer multiplier; will count repeats of kmer_mul*motif_len")
-    parser.add_argument("--rank", dest="rank", default=1, help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
+    parser.add_argument("--rank", dest="rank", default="1", help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
     parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
     args = parser.parse_args()
+    if args.rank != "auto" and not str.isnumeric(args.rank):
+        print("ERROR: Rank must be 'auto' or an integer.", file=sys.stderr)
+        exit(1)
+    args.rank = int(args.rank) if str.isnumeric(args.rank) else -1
     with open(args.catalog_path, 'rt') as in_file:
         catalog = json.load(in_file)
     vcf_catalog = parse_vcf_file(args.vcf_path, keep_lowdepth=args.keep_lowdepth)
