@@ -3,6 +3,11 @@ k-mer based filtering of ExpansionHunter 5 output.
 
 # Changelog
 
+## v0.11.0
+
+- new handling for motifs < read length - if a motif is < the read length the margin size is set to the locus + 20% of the genotyped motif length. This reduces the left-censoring behaviour the filtering was exhibiting at certain loci
+- reference-sized STRs should now be correctly reported, unless they occur as the result of a LowDepth call - ie genotypes of ./. in the format string will be filtered, but genotypes of <ref>/<ref> will not.
+
 ## v0.10.0
 
 - fixes `--rank` parameter
