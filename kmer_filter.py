@@ -53,6 +53,7 @@ def parse_vcf_file(vcf_path, keep_lowdepth):
             rep_id = desc_line.get("REPID")
             gt = record.samples[0].get("REPCN")
             id_string = var_id if var_id else rep_id
+            if gt == "." or gt == "./.": continue
             rep_counts = [int(x) for x in gt.split("/")]
             max_allele = max(rep_counts)
             min_allele = min(rep_counts) if len(rep_counts) > 1 else None
@@ -89,10 +90,19 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
             chrom, positions = coord.split(":")
             start, end = [int(x) for x in positions.split("-")]
             for read in samfile.fetch(chrom, start - args.margin, end + args.margin):
-                tag = read.get_tag("XG").split(",")[0]
                 read_sequences.append(read.seq)
             if len(read_sequences) == 0 or vcf_catalog[motif_id][2] == None:
                 continue
+            genotyped_len = floor(vcf_catalog[motif_id][2])
+            read_len = [len(x) for x in read_sequences]
+            average_read_len = floor(sum(read_len) / len(read_len))
+            # If the genotyped length < read length, tighten margins
+            if genotyped_len < average_read_len:
+                read_sequences = list()
+                for read in samfile.fetch(chrom, start - floor(0.2*genotyped_len*len(motif_dict[motif_id])), end + floor(0.2*genotyped_len*len(motif_dict[motif_id]))):
+                    read_sequences.append(read.seq)
+                if len(read_sequences) == 0 or genotyped_len == None:
+                    continue
             genotyped_len = floor(vcf_catalog[motif_id][2])
             read_len = [len(x) for x in read_sequences]
             average_read_len = floor(sum(read_len) / len(read_len))
