@@ -106,8 +106,8 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
             genotyped_len = floor(vcf_catalog[motif_id][2])
             read_len = [len(x) for x in read_sequences]
             average_read_len = floor(sum(read_len) / len(read_len))
-            kmer_size = max(min(floor(0.2 * genotyped_len) * len(motif_dict[motif_id]), 
-                                floor(0.2 * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
+            kmer_size = max(min(floor(args.kmer_mul * genotyped_len) * len(motif_dict[motif_id]), 
+                                floor(args.kmer_mul * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
             kmer_dict = kmer_count(read_sequences, kmer_size)
             lexed_dict = defaultdict(int)
             count_lim = len(locus_struct_list) if kmer_range == -1 else kmer_range
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--vcf", dest="vcf_path", help="Path to EH5 VCF")
     parser.add_argument("-o", "--output", dest="output_path", help="Prefix (path) for output")
     parser.add_argument("-m", "--margin", dest="margin", default=1000, help="Margin (in nt) around catalog entry to calculate kmers")
-    parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", default=15, help="k-mer multiplier; will count repeats of kmer_mul*motif_len")
+    parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", type=float, default=0.2, help="k-mer multiplier")
     parser.add_argument("--rank", dest="rank", default="1", help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
     parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
@@ -143,6 +143,10 @@ if __name__ == "__main__":
         print("ERROR: Rank must be 'auto' or an integer.", file=sys.stderr)
         exit(1)
     args.rank = int(args.rank) if str.isnumeric(args.rank) else -1
+    if not 0.0 < args.kmer_mul <= 1.0:
+        print('ERROR: kmer_mul must be in the range 0.0 - 1.0')
+        exit(1)
+
     with open(args.catalog_path, 'rt') as in_file:
         catalog = json.load(in_file)
     vcf_catalog = parse_vcf_file(args.vcf_path, keep_lowdepth=args.keep_lowdepth)
