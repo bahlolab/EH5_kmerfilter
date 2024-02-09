@@ -137,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--rank", dest="rank", default="1", help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
     parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
-    parser.add_argument("--log_filtered", dest="log_filtered", default=False, action="store_true", help="Flag to save removed calls in a separate output file")
+    parser.add_argument("--save_filtered", dest="save_filtered", default=False, action="store_true", help="Flag to save removed calls in a separate output file")
     args = parser.parse_args()
     if args.rank != "auto" and not str.isnumeric(args.rank):
         print("ERROR: Rank must be 'auto' or an integer.", file=sys.stderr)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     regex_dict = {}
     retain_ids = process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=args.rank, enable_logs=args.log_flag)
     with open(args.vcf_path, 'rt') as vcf_file, open(args.output_path + "_validated.vcf", 'wt') as out_file:
-        if args.log_filtered:
+        if args.save_filtered:
             removed_file = open(args.output_path + "_removed.vcf", 'wt')
         else:
             removed_file = None
