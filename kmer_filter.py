@@ -99,7 +99,7 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
             # If the genotyped length < read length, tighten margins
             if args.auto and (genotyped_len < average_read_len):
                 read_sequences = list()
-                for read in samfile.fetch(chrom, start - floor(0.2*genotyped_len*len(motif_dict[motif_id])), end + floor(0.2*genotyped_len*len(motif_dict[motif_id]))):
+                for read in samfile.fetch(chrom, min(start - average_read_len, start - floor(0.2*genotyped_len*len(motif_dict[motif_id]))), max(end + average_read_len, end + floor(0.2*genotyped_len*len(motif_dict[motif_id])))):
                     read_sequences.append(read.seq)
                 if len(read_sequences) == 0 or genotyped_len == None:
                     continue
