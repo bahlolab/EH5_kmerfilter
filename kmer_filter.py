@@ -138,7 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", dest="output_path", help="Prefix (path) for output")
     parser.add_argument("-m", "--margin", dest="margin", default=1000, help="Margin (in nt) around catalog entry to calculate kmers")
     parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", type=float, default=0.2, help="k-mer multiplier")
-    parser.add_argument("--rank", dest="rank", default="1", help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
+    parser.add_argument("--rank", dest="rank", default="1", type=int, help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
     parser.add_argument("--auto", dest="auto", default=False, action="store_true", help="Flag to act as --rank n at motifs where n loci are defined")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
     parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
