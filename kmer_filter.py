@@ -97,20 +97,24 @@ def process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_
             read_len = [len(x) for x in read_sequences]
             average_read_len = floor(sum(read_len) / len(read_len))
             # If the genotyped length < read length, tighten margins
-            if genotyped_len < average_read_len:
+            if args.auto and (genotyped_len < average_read_len):
                 read_sequences = list()
-                for read in samfile.fetch(chrom, start - floor(0.2*genotyped_len*len(motif_dict[motif_id])), end + floor(0.2*genotyped_len*len(motif_dict[motif_id]))):
+                for read in samfile.fetch(chrom, min(start - average_read_len, start - floor(0.2*genotyped_len*len(motif_dict[motif_id]))), max(end + average_read_len, end + floor(0.2*genotyped_len*len(motif_dict[motif_id])))):
                     read_sequences.append(read.seq)
                 if len(read_sequences) == 0 or genotyped_len == None:
                     continue
-            genotyped_len = floor(vcf_catalog[motif_id][2])
-            read_len = [len(x) for x in read_sequences]
-            average_read_len = floor(sum(read_len) / len(read_len))
-            kmer_size = max(min(floor(0.2 * genotyped_len) * len(motif_dict[motif_id]), 
-                                floor(0.2 * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
+                genotyped_len = floor(vcf_catalog[motif_id][2])
+                read_len = [len(x) for x in read_sequences]
+                average_read_len = floor(sum(read_len) / len(read_len))
+            kmer_size = max(min(floor(args.kmer_mul * genotyped_len) * len(motif_dict[motif_id]), 
+                                floor(args.kmer_mul * floor(average_read_len / len(motif_dict[motif_id]))) * len(motif_dict[motif_id])), len(motif_dict[motif_id]))
             kmer_dict = kmer_count(read_sequences, kmer_size)
             lexed_dict = defaultdict(int)
-            count_lim = len(locus_struct_list) if kmer_range == -1 else kmer_range
+            if args.auto & (len(locus_struct_list) > 1):
+                count_lim = len(locus_struct_list)
+            else:
+                count_lim = kmer_range
+
             for kmer in kmer_dict:
                 if kmer.count(kmer[0:len(motif_dict[motif_id])]) * len(motif_dict[motif_id]) == kmer_size:
                     lexed_dict[lex_min_rotation(kmer)[0:len(motif_dict[motif_id])]] += kmer_dict[kmer]
@@ -133,15 +137,17 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--vcf", dest="vcf_path", help="Path to EH5 VCF")
     parser.add_argument("-o", "--output", dest="output_path", help="Prefix (path) for output")
     parser.add_argument("-m", "--margin", dest="margin", default=1000, help="Margin (in nt) around catalog entry to calculate kmers")
-    parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", default=15, help="k-mer multiplier; will count repeats of kmer_mul*motif_len")
-    parser.add_argument("--rank", dest="rank", default="1", help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
+    parser.add_argument("-r", "--kmer_mul", dest="kmer_mul", type=float, default=0.2, help="k-mer multiplier")
+    parser.add_argument("--rank", dest="rank", default="1", type=int, help="k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs")
+    parser.add_argument("--auto", dest="auto", default=False, action="store_true", help="Flag to act as --rank n at motifs where n loci are defined")
     parser.add_argument("--logs", dest="log_flag", default=False, action="store_true", help="Flag to enable generation of per-locus k-mer breakdown")
     parser.add_argument("--keep_lowdepth", dest="keep_lowdepth", default=False, action="store_true", help="Flag to keep LowDepth calls in VCF")
+    parser.add_argument("--save_filtered", dest="save_filtered", default=False, action="store_true", help="Flag to save removed calls in a separate output file")
     args = parser.parse_args()
-    if args.rank != "auto" and not str.isnumeric(args.rank):
-        print("ERROR: Rank must be 'auto' or an integer.", file=sys.stderr)
+    if not 0.0 < args.kmer_mul <= 1.0:
+        print('ERROR: kmer_mul must be in the range 0.0 - 1.0')
         exit(1)
-    args.rank = int(args.rank) if str.isnumeric(args.rank) else -1
+
     with open(args.catalog_path, 'rt') as in_file:
         catalog = json.load(in_file)
     vcf_catalog = parse_vcf_file(args.vcf_path, keep_lowdepth=args.keep_lowdepth)
@@ -151,9 +157,15 @@ if __name__ == "__main__":
     regex_dict = {}
     retain_ids = process_catalog(catalog, vcf_catalog, samfile, motif_dict, regex_dict, kmer_range=args.rank, enable_logs=args.log_flag)
     with open(args.vcf_path, 'rt') as vcf_file, open(args.output_path + "_validated.vcf", 'wt') as out_file:
+        if args.save_filtered:
+            removed_file = open(args.output_path + "_removed.vcf", 'wt')
+        else:
+            removed_file = None
         for line in vcf_file:
             if line.startswith("#"):
                 out_file.write(line)
+                if removed_file:
+                    removed_file.write(line)
                 continue
             spline = line.strip().split()
             desc_line = spline[7]
@@ -165,3 +177,5 @@ if __name__ == "__main__":
             id_string = var_id if var_id else rep_id
             if id_string in retain_ids:
                 out_file.write(line)
+            elif removed_file:
+                removed_file.write(line)
