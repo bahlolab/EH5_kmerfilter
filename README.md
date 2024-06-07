@@ -57,14 +57,14 @@ python kmer_filter.py -b <bam_path> -c <catalog_path> -v <vcf_path> -o <output_p
 * -b, --bam: Path to the EH5 BAM file.
 * -c, --catalog: Path to the JSON catalog file used by EH5.
 * -v, --vcf: Path to the EH5 VCF file.
-* -o, --output: Path for the output files. The script will generate <output>_validated.vcf and optionally <output>_kmers.tsv.gz.
+* -o, --output: Path for the output files. The script will generate <output>_validated.vcf (and optionally <output>_kmers.tsv.gz and <output>_removed.vcf).
 * -m, --margin: Margin for fetching sequence reads from the BAM file (default is 1,000).
 * --rank: integer. k-mer rank; will accept a call if it is in the top (rank) of kmers at the locus in BAMs (default = 1).
 * --auto: boolean. If present, will act as --rank n at motifs where n loci are defined.
-* --keep_lowdepth: boolean. Flag to keep LowDepth calls in VCF
 * -r, --kmer_mul: Multiplier for the k-mer size (float in range 0.0 - 1.0, default is 0.2).
+* --keep_lowdepth: boolean. Low depth calls are removed by default. If present, calls flagged as LowDepth are kmer checked (default = False)
 * --logs: boolean. If present, will save <output>_kmers.tsv.gz file containing all kmer counts in the BAM.
-* --save_filtered: boolean. If present, will save removed calls in a separate file <output>_removed.vcf
+* --save_filtered: boolean. If present, will save removed calls in a separate file <output>_removed.vcf.
 
 ## Example
 
