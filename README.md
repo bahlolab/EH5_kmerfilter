@@ -3,6 +3,10 @@ k-mer based filtering of ExpansionHunter 5 output.
 
 # Changelog
 
+## v1.0.0
+
+- Version number change only from v0.12.0.
+
 ## v0.12.0
 - --save_filtered flag added to save removed calls in a separate output VCF (<output>_removed.vcf)
 - --auto flag added to allow auto margin resizing on genotypes below the read length. This allows the separate use of both --rank and --auto in one command. 
